@@ -944,6 +944,62 @@ footer .contact-cta a {
     return { first: parts[0], last: parts.slice(1).join(' ') };
   }
 
+  function parseAddress(full) {
+    if (!full) return { street: '', city: '', state: '', zip: '' };
+    let s = full.trim();
+    const zipMatch = s.match(/\b(\d{5}(?:-\d{4})?)\s*$/);
+    let zip = '';
+    if (zipMatch) {
+      zip = zipMatch[1];
+      s = s.slice(0, zipMatch.index).replace(/[,\s]+$/, '').trim();
+    }
+    const abbrevs = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY','DC'];
+    const fullNames = {alabama:'AL',alaska:'AK',arizona:'AZ',arkansas:'AR',california:'CA',colorado:'CO',connecticut:'CT',delaware:'DE',florida:'FL',georgia:'GA',hawaii:'HI',idaho:'ID',illinois:'IL',indiana:'IN',iowa:'IA',kansas:'KS',kentucky:'KY',louisiana:'LA',maine:'ME',maryland:'MD',massachusetts:'MA',michigan:'MI',minnesota:'MN',mississippi:'MS',missouri:'MO',montana:'MT',nebraska:'NE',nevada:'NV','new hampshire':'NH','new jersey':'NJ','new mexico':'NM','new york':'NY','north carolina':'NC','north dakota':'ND',ohio:'OH',oklahoma:'OK',oregon:'OR',pennsylvania:'PA','rhode island':'RI','south carolina':'SC','south dakota':'SD',tennessee:'TN',texas:'TX',utah:'UT',vermont:'VT',virginia:'VA',washington:'WA','west virginia':'WV',wisconsin:'WI',wyoming:'WY','california':'CA'};
+    let state = '';
+    const lastSpace = s.lastIndexOf(' ');
+    if (lastSpace !== -1) {
+      const last = s.slice(lastSpace + 1).replace(/[.,]/g, '').toUpperCase();
+      if (abbrevs.includes(last)) {
+        state = last;
+        s = s.slice(0, lastSpace).replace(/[,\s]+$/, '').trim();
+      }
+    }
+    if (!state) {
+      const lower = s.toLowerCase();
+      for (const [name, ab] of Object.entries(fullNames)) {
+        if (lower.endsWith(name)) {
+          state = ab;
+          s = s.slice(0, s.length - name.length).replace(/[,\s]+$/, '').trim();
+          break;
+        }
+      }
+    }
+    let street = '', city = '';
+    const lastComma = s.lastIndexOf(',');
+    if (lastComma !== -1) {
+      street = s.slice(0, lastComma).trim();
+      city = s.slice(lastComma + 1).trim();
+    } else {
+      const suffixes = ['street','st','avenue','ave','boulevard','blvd','road','rd','drive','dr','lane','ln','court','ct','place','pl','way','parkway','pkwy','circle','cir','terrace','ter','trail','trl','highway','hwy','calle','avenida','camino'];
+      const words = s.split(/\s+/);
+      let splitIdx = -1;
+      for (let i = words.length - 1; i >= 0; i--) {
+        const clean = words[i].toLowerCase().replace(/[.,]/g, '');
+        if (suffixes.includes(clean)) { splitIdx = i + 1; break; }
+      }
+      if (splitIdx > 0 && splitIdx < words.length) {
+        street = words.slice(0, splitIdx).join(' ');
+        city = words.slice(splitIdx).join(' ');
+      } else if (words.length > 1) {
+        city = words[words.length - 1];
+        street = words.slice(0, -1).join(' ');
+      } else {
+        street = s;
+      }
+    }
+    return { street, city, state, zip };
+  }
+
   form.addEventListener('submit', async function (e) {
     e.preventDefault();
     const btn = form.querySelector('.submit');
@@ -953,6 +1009,7 @@ footer .contact-cta a {
 
     const fullName = form.full_name.value;
     const { first, last } = splitName(fullName);
+    const addr = parseAddress(form.address.value);
     const evacLabel = form.evacuation_date.value;
     const evacIso = evacMap[evacLabel] || '2026-05-21';
     const symptoms = form.had_symptoms.value;
@@ -972,9 +1029,15 @@ footer .contact-cta a {
     payload.append('Phone', form.phone.value);
     payload.append('Email', form.email.value);
     payload.append('Address', form.address.value);
+    payload.append('Address Line 1', addr.street);
+    payload.append('City', addr.city);
+    payload.append('State', addr.state);
+    payload.append('Postal Code', addr.zip);
     payload.append('Evacuation Date', evacIso);
     payload.append('Symptoms', symptoms);
     payload.append('Summary', summary);
+    payload.append('Case Type', 'Garden Grove Chemical Leak');
+    payload.append('Severity Level', 'Medium');
 
     try {
       // Lead Docket doesn't return CORS headers — opaque response is expected.
