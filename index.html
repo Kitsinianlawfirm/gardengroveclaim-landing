@@ -886,7 +886,7 @@ footer .contact-cta a {
     <p class="section-lede">Quick form — takes 30 seconds. A member of our intake team will call you within 24 hours.</p>
 
     <form class="form" id="leadForm"
-          action="https://formspree.io/f/REPLACE_ME_WITH_FORMSPREE_ID"
+          action="https://kitsinianlaw.leaddocket.com/opportunities/form/4?apikey=kLF_gg_2026_x9Hp4mNvR2qZ8bWtY7sJ"
           method="POST"
           autocomplete="on">
 
@@ -932,9 +932,6 @@ footer .contact-cta a {
           <option>No symptoms</option>
         </select>
       </div>
-
-      <input type="hidden" name="_subject" value="🚨 New OC Chem Leak Lead (from gardengrovetankleak.com)" />
-      <input type="hidden" name="source" value="gardengrovetankleak.com landing page" />
 
       <button type="submit" class="submit">SUBMIT — START MY FREE CASE REVIEW</button>
 
@@ -1082,24 +1079,64 @@ footer .contact-cta a {
   const form = document.getElementById('leadForm');
   const success = document.getElementById('formSuccess');
   if (!form) return;
+
+  // Maps the dropdown label to an ISO date Lead Docket can parse as a datetime.
+  const evacMap = {
+    'Before May 21, 2026': '2026-05-20',
+    'May 21–22, 2026 (initial evacuation)': '2026-05-21',
+    'May 23, 2026 or later': '2026-05-23',
+    'Not evacuated but live in the area': '2026-05-21',
+    'I was not affected': '2026-05-21',
+  };
+
+  function splitName(full) {
+    const parts = (full || '').trim().split(/\s+/);
+    if (parts.length === 0) return { first: '', last: '' };
+    if (parts.length === 1) return { first: parts[0], last: '' };
+    return { first: parts[0], last: parts.slice(1).join(' ') };
+  }
+
   form.addEventListener('submit', async function (e) {
     e.preventDefault();
     const btn = form.querySelector('.submit');
     const originalText = btn.textContent;
     btn.disabled = true;
     btn.textContent = 'Submitting...';
+
+    const fullName = form.full_name.value;
+    const { first, last } = splitName(fullName);
+    const evacLabel = form.evacuation_date.value;
+    const evacIso = evacMap[evacLabel] || '2026-05-21';
+    const symptoms = form.had_symptoms.value;
+
+    const summary = [
+      'Garden Grove Chemical Leak — Lead Form Submission',
+      `Evacuation window: ${evacLabel}`,
+      `Symptoms response: ${symptoms}`,
+      `Address at time of leak: ${form.address.value}`,
+      `Source: gardengrovetankleak.com`,
+    ].join('\n');
+
+    const payload = new FormData();
+    payload.append('First', first);
+    payload.append('Last', last);
+    payload.append('Phone', form.phone.value);
+    payload.append('Email', form.email.value);
+    payload.append('Address', form.address.value);
+    payload.append('Evacuation Date', evacIso);
+    payload.append('Symptoms', symptoms);
+    payload.append('Summary', summary);
+
     try {
-      const data = new FormData(form);
       const res = await fetch(form.action, {
         method: 'POST',
-        body: data,
+        body: payload,
         headers: { 'Accept': 'application/json' },
       });
       if (res.ok) {
         form.style.display = 'none';
         success.classList.add('show');
         success.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        // Fire conversion events for both Meta Pixel and any future GA4
         if (typeof fbq === 'function') { fbq('track', 'Lead'); fbq('track', 'SubmitApplication'); }
         if (typeof gtag === 'function') { gtag('event', 'generate_lead', {'currency':'USD','value':1}); }
       } else {

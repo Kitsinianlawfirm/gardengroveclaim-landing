@@ -739,7 +739,7 @@ footer .contact-cta a {
     <p class="section-lede">Formulario rápido — solo toma 30 segundos. Un miembro de nuestro equipo le llamará en las próximas 24 horas.</p>
 
     <form class="form" id="leadForm"
-          action="https://formspree.io/f/REPLACE_ME_WITH_FORMSPREE_ID"
+          action="https://kitsinianlaw.leaddocket.com/opportunities/form/4?apikey=kLF_gg_2026_x9Hp4mNvR2qZ8bWtY7sJ"
           method="POST"
           autocomplete="on">
 
@@ -785,10 +785,6 @@ footer .contact-cta a {
           <option>No sufrí síntomas</option>
         </select>
       </div>
-
-      <input type="hidden" name="_subject" value="🚨 Nuevo Lead OC Chem Leak (desde gardengrovetankleak.com /es)" />
-      <input type="hidden" name="source" value="gardengrovetankleak.com landing page (Spanish)" />
-      <input type="hidden" name="language" value="Spanish" />
 
       <button type="submit" class="submit">ENVIAR — INICIAR MI CONSULTA GRATIS</button>
 
@@ -932,17 +928,58 @@ footer .contact-cta a {
   const form = document.getElementById('leadForm');
   const success = document.getElementById('formSuccess');
   if (!form) return;
+
+  const evacMap = {
+    'Antes del 21 de mayo de 2026': '2026-05-20',
+    '21–22 de mayo de 2026 (evacuación inicial)': '2026-05-21',
+    '23 de mayo de 2026 o después': '2026-05-23',
+    'No fui evacuado pero vivo en la zona': '2026-05-21',
+    'No fui afectado': '2026-05-21',
+  };
+
+  function splitName(full) {
+    const parts = (full || '').trim().split(/\s+/);
+    if (parts.length === 0) return { first: '', last: '' };
+    if (parts.length === 1) return { first: parts[0], last: '' };
+    return { first: parts[0], last: parts.slice(1).join(' ') };
+  }
+
   form.addEventListener('submit', async function (e) {
     e.preventDefault();
     const btn = form.querySelector('.submit');
     const originalText = btn.textContent;
     btn.disabled = true;
     btn.textContent = 'Enviando...';
+
+    const fullName = form.full_name.value;
+    const { first, last } = splitName(fullName);
+    const evacLabel = form.evacuation_date.value;
+    const evacIso = evacMap[evacLabel] || '2026-05-21';
+    const symptoms = form.had_symptoms.value;
+
+    const summary = [
+      'Garden Grove Chemical Leak — Lead Form Submission (Spanish)',
+      `Language: Spanish`,
+      `Evacuation window: ${evacLabel}`,
+      `Symptoms response: ${symptoms}`,
+      `Address at time of leak: ${form.address.value}`,
+      `Source: gardengrovetankleak.com/es`,
+    ].join('\n');
+
+    const payload = new FormData();
+    payload.append('First', first);
+    payload.append('Last', last);
+    payload.append('Phone', form.phone.value);
+    payload.append('Email', form.email.value);
+    payload.append('Address', form.address.value);
+    payload.append('Evacuation Date', evacIso);
+    payload.append('Symptoms', symptoms);
+    payload.append('Summary', summary);
+
     try {
-      const data = new FormData(form);
       const res = await fetch(form.action, {
         method: 'POST',
-        body: data,
+        body: payload,
         headers: { 'Accept': 'application/json' },
       });
       if (res.ok) {
