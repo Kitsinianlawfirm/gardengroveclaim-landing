@@ -1128,22 +1128,19 @@ footer .contact-cta a {
     payload.append('Summary', summary);
 
     try {
-      const res = await fetch(form.action, {
+      // Lead Docket doesn't return CORS headers, so we use no-cors mode.
+      // The response is opaque — we can't read it — but the POST is delivered.
+      // If fetch() resolves without throwing, treat as success.
+      await fetch(form.action, {
         method: 'POST',
+        mode: 'no-cors',
         body: payload,
-        headers: { 'Accept': 'application/json' },
       });
-      if (res.ok) {
-        form.style.display = 'none';
-        success.classList.add('show');
-        success.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        if (typeof fbq === 'function') { fbq('track', 'Lead'); fbq('track', 'SubmitApplication'); }
-        if (typeof gtag === 'function') { gtag('event', 'generate_lead', {'currency':'USD','value':1}); }
-      } else {
-        btn.disabled = false;
-        btn.textContent = originalText;
-        alert("Something went wrong. Please call (888) 480-5858 or try again.");
-      }
+      form.style.display = 'none';
+      success.classList.add('show');
+      success.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (typeof fbq === 'function') { fbq('track', 'Lead'); fbq('track', 'SubmitApplication'); }
+      if (typeof gtag === 'function') { gtag('event', 'generate_lead', {'currency':'USD','value':1}); }
     } catch (err) {
       btn.disabled = false;
       btn.textContent = originalText;

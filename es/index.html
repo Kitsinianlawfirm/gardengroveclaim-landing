@@ -977,22 +977,17 @@ footer .contact-cta a {
     payload.append('Summary', summary);
 
     try {
-      const res = await fetch(form.action, {
+      // Lead Docket doesn't return CORS headers — opaque response is expected.
+      await fetch(form.action, {
         method: 'POST',
+        mode: 'no-cors',
         body: payload,
-        headers: { 'Accept': 'application/json' },
       });
-      if (res.ok) {
-        form.style.display = 'none';
-        success.classList.add('show');
-        success.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        if (typeof fbq === 'function') { fbq('track', 'Lead'); fbq('track', 'SubmitApplication'); }
-        if (typeof gtag === 'function') { gtag('event', 'generate_lead', {'currency':'USD','value':1}); }
-      } else {
-        btn.disabled = false;
-        btn.textContent = originalText;
-        alert("Ocurrió un error. Por favor llame al (888) 480-5858 o intente de nuevo.");
-      }
+      form.style.display = 'none';
+      success.classList.add('show');
+      success.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (typeof fbq === 'function') { fbq('track', 'Lead'); fbq('track', 'SubmitApplication'); }
+      if (typeof gtag === 'function') { gtag('event', 'generate_lead', {'currency':'USD','value':1}); }
     } catch (err) {
       btn.disabled = false;
       btn.textContent = originalText;
