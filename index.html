@@ -1190,17 +1190,14 @@ footer .contact-cta a {
     payload.append('Last', last);
     payload.append('Phone', form.phone.value);
     payload.append('Email', form.email.value);
-    payload.append('Address', form.address.value);
-    payload.append('Address Line 1', addr.street);
+    payload.append('Address', addr.street || form.address.value);
     payload.append('City', addr.city);
     payload.append('State', addr.state);
-    payload.append('Postal Code', addr.zip);
+    payload.append('Postal_Code', addr.zip);
     payload.append('Evacuation Date', evacIso);
     payload.append('Symptoms', symptoms);
     payload.append('Summary', summary);
-    payload.append('Case Type', 'Garden Grove Chemical Leak');
-    payload.append('Severity Level', '3');
-    payload.append('Language', 'English');
+    payload.append('Preferred_Language', 'English');
 
     try {
       // Lead Docket doesn't return CORS headers, so we use no-cors mode.
