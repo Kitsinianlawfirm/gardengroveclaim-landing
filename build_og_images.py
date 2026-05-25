@@ -1,15 +1,20 @@
 """
 Generate Open Graph (link preview) images for the landing page.
 1200x630 — the dimension Facebook/LinkedIn/iMessage/etc. use for previews.
-Headline + trust line are BURNED IN to the image (no HTML overlay) because
-social media platforms render the image, not the page.
+
+v2 design (May 2026 spruce-up):
+- Headline left-aligned, two-line, Barlow Black — "GARDEN GROVE / CHEMICAL LEAK"
+- Directional gradient (left dark, right reveal) instead of full overlay
+- Full-width yellow info bar with conversion hook
+- Bottom-right logo+domain, bottom-left trust line (asymmetric energy)
+- Top-left small "MAY 2026" date stamp for recency signal
 
 Output:
-  - og-en.jpg  (English version, for root URL)
-  - og-es.jpg  (Spanish version, for /es/ URL)
+  - og-en.jpg  (English, root URL)
+  - og-es.jpg  (Spanish, /es/ URL)
 """
 
-from PIL import Image, ImageDraw, ImageFont, ImageEnhance, ImageFilter
+from PIL import Image, ImageDraw, ImageFont, ImageEnhance
 from pathlib import Path
 
 OUT = Path(__file__).parent
@@ -18,7 +23,6 @@ LOGO_PATH = OUT / "logo.png"
 
 W, H = 1200, 630
 
-# Brand palette
 COLORS = {
     "bg_dark": (12, 14, 20),
     "yellow": (255, 209, 0),
@@ -26,15 +30,12 @@ COLORS = {
     "white": (255, 255, 255),
     "gold": (198, 162, 92),
     "muted": (174, 180, 192),
+    "black": (0, 0, 0),
 }
 
-# Fonts (firm standards)
-FONT_BEBAS = "/Users/hkitsinian/Library/Fonts/BebasNeue-Regular.otf"
 FONT_BARLOW_BLACK = "/Users/hkitsinian/Library/Fonts/Barlow-Black.otf"
 FONT_BARLOW_XBOLD = "/Users/hkitsinian/Library/Fonts/Barlow-ExtraBold.otf"
-FONT_BARLOW_COND_XB = "/Users/hkitsinian/Library/Fonts/BarlowCondensed-ExtraBold.otf"
 FONT_INTER_XBOLD = "/Users/hkitsinian/Library/Fonts/Inter-ExtraBold.otf"
-FONT_INTER_SEMI = "/Users/hkitsinian/Library/Fonts/Inter-SemiBold.otf"
 
 
 def f(path, size):
@@ -52,6 +53,12 @@ def draw_cap_centered(draw, cx, cy, text, font, fill):
     draw.text((cx, top_y), text, font=font, fill=fill, anchor="mt")
 
 
+def draw_cap_left(draw, x, cy, text, font, fill):
+    ch = cap_height(draw, font)
+    top_y = cy - ch // 2
+    draw.text((x, top_y), text, font=font, fill=fill, anchor="lt")
+
+
 def cover_fit(src, w, h):
     sw, sh = src.size
     scale = max(w / sw, h / sh)
@@ -62,125 +69,138 @@ def cover_fit(src, w, h):
     return img.crop((left, top, left + w, top + h))
 
 
-def build_og(headline_lines, subhead, trust_line, domain, output_filename, chip_text="URGENT LEGAL NOTICE"):
-    """headline_lines = list of strings rendered in Bebas Neue."""
-    # Background photo with brighten + 50% dark overlay
+def text_width(draw, text, font):
+    b = draw.textbbox((0, 0), text, font=font, anchor="lt")
+    return b[2] - b[0]
+
+
+def build_og(headline_lines, yellow_bar_text, trust_line, domain, output_filename, date_text="MAY 2026"):
+    """v2 layout — left-aligned big headline, yellow info bar, asymmetric footer."""
+    # 1) Background photo (brighten + contrast)
     photo = Image.open(PHOTO_PATH).convert("RGB")
     bg = cover_fit(photo, W, H)
     bg = ImageEnhance.Brightness(bg).enhance(1.10)
     bg = ImageEnhance.Contrast(bg).enhance(1.15)
-    overlay = Image.new("RGB", (W, H), COLORS["bg_dark"])
-    bg = Image.blend(bg, overlay, 0.55)
     img = bg.convert("RGBA")
 
-    # Gradient at bottom for trust line legibility
-    grad = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    gd = ImageDraw.Draw(grad)
-    for y in range(int(H * 0.55), H):
-        t = (y - int(H * 0.55)) / (H - int(H * 0.55))
-        a = int(t * 200)
-        gd.line([(0, y), (W, y)], fill=(8, 10, 16, a))
-    img.alpha_composite(grad)
+    # 2) Left-side directional gradient (solid dark on left, fades to clear on right)
+    # Solid dark in left 50%, fades to transparent by x=85% — keeps photo visible on right
+    grad_strip = Image.new("L", (W, 1), 0)
+    for x in range(W):
+        if x < int(W * 0.50):
+            mask = 235  # near-solid dark on left half
+        elif x < int(W * 0.85):
+            t = (x - int(W * 0.50)) / (int(W * 0.85) - int(W * 0.50))
+            mask = int(235 * (1 - t))  # fade through middle
+        else:
+            mask = 0  # fully transparent on right 15%
+        grad_strip.putpixel((x, 0), mask)
+    grad_mask = grad_strip.resize((W, H))
+    dark_layer = Image.new("RGBA", (W, H), COLORS["bg_dark"] + (255,))
+    dark_layer.putalpha(grad_mask)
+    img.alpha_composite(dark_layer)
+
+    # 3) Bottom gradient strip for footer legibility (full-width subtle)
+    bot_grad = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    bgd = ImageDraw.Draw(bot_grad)
+    for y in range(int(H * 0.78), H):
+        t = (y - int(H * 0.78)) / (H - int(H * 0.78))
+        a = int(t * 180)
+        bgd.line([(0, y), (W, y)], fill=(8, 10, 16, a))
+    img.alpha_composite(bot_grad)
 
     draw = ImageDraw.Draw(img)
 
-    # Top-left URGENT chip
-    chip_font = f(FONT_INTER_XBOLD, 22)
-    chip_pad_x, chip_pad_y = 22, 11
-    chip_w = draw.textbbox((0, 0), chip_text, font=chip_font, anchor="lt")[2] + chip_pad_x * 2
-    chip_h = chip_font.size + chip_pad_y * 2
-    chip_x, chip_y = 50, 50
+    # 4) Top-left date stamp (outlined chip, no fill)
+    date_font = f(FONT_INTER_XBOLD, 22)
+    date_pad_x, date_pad_y = 18, 10
+    date_w = text_width(draw, date_text, date_font) + date_pad_x * 2
+    date_h = date_font.size + date_pad_y * 2
+    date_x, date_y = 55, 50
     draw.rounded_rectangle(
-        [chip_x, chip_y, chip_x + chip_w, chip_y + chip_h],
-        radius=chip_h // 2, fill=COLORS["red"],
+        [date_x, date_y, date_x + date_w, date_y + date_h],
+        radius=6, outline=COLORS["white"], width=2,
     )
-    draw_cap_centered(draw, chip_x + chip_w // 2, chip_y + chip_h // 2, chip_text, chip_font, COLORS["white"])
+    draw_cap_centered(draw, date_x + date_w // 2, date_y + date_h // 2, date_text, date_font, COLORS["white"])
 
-    # Headline (centered vertically in upper-middle)
-    head_font = f(FONT_BEBAS, 120)
-    n_lines = len(headline_lines)
-    line_h = 110
-    total_h = line_h * n_lines
-    head_start_y = int(H * 0.30) - total_h // 2 + line_h // 2
+    # 5) Headline (left-aligned, two lines, Barlow Black 130pt)
+    head_font = f(FONT_BARLOW_BLACK, 130)
+    head_x = 60
+    line_h = 130  # tight line height for max impact
+    head_start_y = 165  # cap top of first line
     for i, line in enumerate(headline_lines):
-        draw_cap_centered(
-            draw, W // 2, head_start_y + i * line_h,
-            line, head_font, COLORS["white"],
-        )
+        draw_cap_left(draw, head_x, head_start_y + i * line_h + (cap_height(draw, head_font) // 2),
+                      line, head_font, COLORS["white"])
 
-    # Subhead (yellow, below headline)
-    sub_font = f(FONT_BARLOW_COND_XB, 44)
-    sub_y = head_start_y + n_lines * line_h + 30
-    # support 2-line subhead via list or 1-line via string
-    if isinstance(subhead, str):
-        subhead = [subhead]
-    sub_line_h = 50
-    for i, line in enumerate(subhead):
-        draw_cap_centered(
-            draw, W // 2, sub_y + i * sub_line_h,
-            line, sub_font, COLORS["yellow"],
-        )
+    # 6) Yellow info bar — full-width strip with conversion hook
+    bar_h = 78
+    bar_y = head_start_y + len(headline_lines) * line_h + 30  # 30px breathing room below headline
+    draw.rectangle([0, bar_y, W, bar_y + bar_h], fill=COLORS["yellow"])
+    bar_font = f(FONT_BARLOW_BLACK, 38)
+    # Nudge text up 3px — cap-centered all-caps reads bottom-heavy at default
+    draw_cap_centered(draw, W // 2, bar_y + bar_h // 2 - 3, yellow_bar_text, bar_font, COLORS["black"])
 
-    # Trust line (gold, bottom)
-    trust_font = f(FONT_BARLOW_XBOLD, 28)
-    draw_cap_centered(draw, W // 2, H - 95, trust_line, trust_font, COLORS["gold"])
+    # 7) Bottom row — asymmetric: trust line left, logo+domain right
+    footer_y = H - 50  # vertical mid of footer row
+    trust_font = f(FONT_BARLOW_XBOLD, 24)
+    # Drop trust line 4px to baseline-align with logo+domain block on right
+    draw_cap_left(draw, 60, footer_y + 4, trust_line, trust_font, COLORS["gold"])
 
-    # Logo + domain bottom
+    # Logo + domain bottom-right
     try:
         logo = Image.open(LOGO_PATH).convert("RGBA")
-        logo_h = 44
+        logo_h = 52
         logo_w = int(logo.width * (logo_h / logo.height))
         logo = logo.resize((logo_w, logo_h), Image.LANCZOS)
-        # Bottom-center: logo on left, domain on right of logo
-        domain_font = f(FONT_INTER_SEMI, 22)
-        gap = 24
-        domain_bbox = draw.textbbox((0, 0), domain, font=domain_font, anchor="lm")
-        domain_w = domain_bbox[2] - domain_bbox[0]
-        # Vertical divider
+        domain_font = f(FONT_INTER_XBOLD, 22)
+        domain_w = text_width(draw, domain, domain_font)
+        gap = 18
+        right_edge = W - 60
+        # Layout: [logo] | [domain] anchored to right
         block_w = logo_w + gap + 2 + gap + domain_w
-        start_x = (W - block_w) // 2
-        y_mid = H - 40
+        start_x = right_edge - block_w
+        y_mid = footer_y
         img.paste(logo, (start_x, y_mid - logo_h // 2), logo)
-        # divider
+        # Gold divider
         div_x = start_x + logo_w + gap
         draw.line(
             [(div_x, y_mid - logo_h // 2 + 6), (div_x, y_mid + logo_h // 2 - 6)],
             fill=COLORS["gold"], width=2,
         )
-        # domain
+        # Domain in WHITE (not muted — better legibility at thumbnail)
         draw.text(
             (div_x + gap, y_mid), domain,
-            font=domain_font, fill=COLORS["muted"], anchor="lm",
+            font=domain_font, fill=COLORS["white"], anchor="lm",
         )
     except Exception as e:
         print(f"  logo render skipped: {e}")
 
-    # Save as JPEG (smaller than PNG, OG-standard)
     out_path = OUT / output_filename
     img.convert("RGB").save(out_path, "JPEG", quality=88, optimize=True)
     print(f"  Wrote {out_path} ({W}x{H})")
 
 
 def main():
-    print("Building OG images...")
+    print("Building OG images (v2 design)...")
 
     # English
     build_og(
-        headline_lines=["EVACUATED?"],
-        subhead=["GARDEN GROVE CHEMICAL LEAK", "YOU MAY BE OWED COMPENSATION"],
+        headline_lines=["GARDEN GROVE", "CHEMICAL LEAK"],
+        yellow_bar_text="EVACUATED?  YOU MAY BE OWED COMPENSATION",
         trust_line="FREE CASE REVIEW · NO FEE UNLESS WE WIN",
-        domain="gardengrovetankleak.com",
+        domain="gardengroveclaim.com",
         output_filename="og-en.jpg",
+        date_text="MAY 2026",
     )
 
     # Spanish
     build_og(
-        headline_lines=["¿FUE EVACUADO?"],
-        subhead=["DERRAME QUÍMICO EN GARDEN GROVE", "PUEDE TENER DERECHO A COMPENSACIÓN"],
+        headline_lines=["DERRAME QUÍMICO", "EN GARDEN GROVE"],
+        yellow_bar_text="¿FUE EVACUADO?  PUEDE TENER COMPENSACIÓN",
         trust_line="CONSULTA GRATIS · SIN COSTO SI NO GANAMOS",
-        domain="gardengrovetankleak.com/es",
+        domain="gardengroveclaim.com/es",
         output_filename="og-es.jpg",
-        chip_text="AVISO LEGAL URGENTE",
+        date_text="MAYO 2026",
     )
 
 
