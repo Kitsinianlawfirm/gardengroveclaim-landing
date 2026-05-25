@@ -423,6 +423,37 @@ section { padding: 64px 22px; }
   outline-offset: 3px;
 }
 .form select { appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23AEB4C0'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 44px; }
+.form textarea { resize: vertical; min-height: 96px; font-family: inherit; line-height: 1.5; }
+.form .checkbox-group {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  background: var(--panel-light);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+@media (min-width: 520px) { .form .checkbox-group { grid-template-columns: 1fr 1fr; gap: 10px 18px; } }
+.form .checkbox-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  padding: 6px 0;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--white);
+  line-height: 1.35;
+}
+.form .checkbox-item input[type="checkbox"] {
+  width: 18px; height: 18px;
+  margin-top: 2px;
+  accent-color: var(--yellow);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.form .checkbox-item span { flex: 1; }
+.form .checkbox-item:hover span { color: var(--yellow); }
 .form .submit {
   width: 100%;
   background: var(--red);
@@ -768,22 +799,28 @@ footer .contact-cta a {
         <label for="evac">¿Cuándo fue evacuado?<span class="req">*</span></label>
         <select id="evac" name="evacuation_date" required>
           <option value="">— seleccione —</option>
-          <option>Antes del 21 de mayo de 2026</option>
           <option>21–22 de mayo de 2026 (evacuación inicial)</option>
           <option>23 de mayo de 2026 o después</option>
           <option>No fui evacuado pero vivo en la zona</option>
-          <option>No fui afectado</option>
         </select>
       </div>
 
       <div class="field">
-        <label for="symptoms">¿Sufrió algún síntoma?<span class="req">*</span></label>
-        <select id="symptoms" name="had_symptoms" required>
-          <option value="">— seleccione —</option>
-          <option>Sí — por favor contáctenme</option>
-          <option>Posiblemente — quiero hablar al respecto</option>
-          <option>No sufrí síntomas</option>
-        </select>
+        <label>Síntomas — marque los que apliquen<span class="opt"> (opcional)</span></label>
+        <div class="checkbox-group">
+          <label class="checkbox-item"><input type="checkbox" name="symptom_breathing" value="Breathing problems / shortness of breath" /><span>Problemas respiratorios / falta de aire</span></label>
+          <label class="checkbox-item"><input type="checkbox" name="symptom_eyes" value="Burning or irritated eyes" /><span>Ardor o irritación en los ojos</span></label>
+          <label class="checkbox-item"><input type="checkbox" name="symptom_throat" value="Sore throat / coughing" /><span>Dolor de garganta / tos</span></label>
+          <label class="checkbox-item"><input type="checkbox" name="symptom_headache" value="Headaches" /><span>Dolores de cabeza</span></label>
+          <label class="checkbox-item"><input type="checkbox" name="symptom_nausea" value="Nausea / dizziness" /><span>Náuseas / mareos</span></label>
+          <label class="checkbox-item"><input type="checkbox" name="symptom_skin" value="Skin irritation / rash" /><span>Irritación de la piel / sarpullido</span></label>
+          <label class="checkbox-item"><input type="checkbox" name="symptom_other" value="Other symptoms" /><span>Otros (por favor descríbalos en el mensaje abajo)</span></label>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="message">Mensaje adicional<span class="opt"> (opcional)</span></label>
+        <textarea id="message" name="message" rows="4" placeholder="Cualquier cosa adicional que quiera contarnos sobre su situación..."></textarea>
       </div>
 
       <button type="submit" class="submit">ENVIAR — INICIAR MI CONSULTA GRATIS</button>
@@ -794,12 +831,8 @@ footer .contact-cta a {
     </form>
 
     <div class="form-success" id="formSuccess">
-      <h3>Gracias — le contactaremos en las próximas 24 horas.</h3>
-      <p>Un miembro de nuestro equipo de admisión le llamará o enviará un correo electrónico para hablar de su posible reclamo.</p>
-      <div class="callout">
-        📞 Le llamaremos desde el <strong>(888) 480-5858</strong>
-        Por favor conteste cuando le llamemos — no dejamos mensajes de voz para nuevos casos. Si pierde nuestra llamada, comuníquese al mismo número.
-      </div>
+      <h3>Gracias — su solicitud ha sido recibida.</h3>
+      <p>Un miembro de nuestro equipo de admisión se comunicará con usted en las próximas 24 horas.</p>
     </div>
   </div>
 </section>
@@ -930,11 +963,9 @@ footer .contact-cta a {
   if (!form) return;
 
   const evacMap = {
-    'Antes del 21 de mayo de 2026': '2026-05-20',
     '21–22 de mayo de 2026 (evacuación inicial)': '2026-05-21',
     '23 de mayo de 2026 o después': '2026-05-23',
     'No fui evacuado pero vivo en la zona': '2026-05-21',
-    'No fui afectado': '2026-05-21',
   };
 
   function splitName(full) {
@@ -1012,16 +1043,21 @@ footer .contact-cta a {
     const addr = parseAddress(form.address.value);
     const evacLabel = form.evacuation_date.value;
     const evacIso = evacMap[evacLabel] || '2026-05-21';
-    const symptoms = form.had_symptoms.value;
+    const symptomChecks = form.querySelectorAll('input[type="checkbox"][name^="symptom_"]:checked');
+    const symptomList = Array.from(symptomChecks).map(cb => cb.value);
+    const symptoms = symptomList.length > 0 ? symptomList.join('; ') : 'None reported';
+    const message = (form.message && form.message.value || '').trim();
 
-    const summary = [
+    const summaryLines = [
       'Garden Grove Chemical Leak — Lead Form Submission (Spanish)',
       `Language: Spanish`,
       `Evacuation window: ${evacLabel}`,
-      `Symptoms response: ${symptoms}`,
+      `Symptoms reported: ${symptoms}`,
       `Address at time of leak: ${form.address.value}`,
-      `Source: gardengrovetankleak.com/es`,
-    ].join('\n');
+    ];
+    if (message) summaryLines.push(`Additional message: ${message}`);
+    summaryLines.push('Source: gardengrovetankleak.com/es');
+    const summary = summaryLines.join('\n');
 
     const payload = new FormData();
     payload.append('First', first);

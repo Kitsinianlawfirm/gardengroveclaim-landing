@@ -507,6 +507,37 @@ section { padding: 64px 22px; }
   outline-offset: 3px;
 }
 .form select { appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23AEB4C0'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 44px; }
+.form textarea { resize: vertical; min-height: 96px; font-family: inherit; line-height: 1.5; }
+.form .checkbox-group {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  background: var(--panel-light);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+@media (min-width: 520px) { .form .checkbox-group { grid-template-columns: 1fr 1fr; gap: 10px 18px; } }
+.form .checkbox-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  padding: 6px 0;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--white);
+  line-height: 1.35;
+}
+.form .checkbox-item input[type="checkbox"] {
+  width: 18px; height: 18px;
+  margin-top: 2px;
+  accent-color: var(--yellow);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.form .checkbox-item span { flex: 1; }
+.form .checkbox-item:hover span { color: var(--yellow); }
 .form .submit {
   width: 100%;
   background: var(--red);
@@ -915,22 +946,28 @@ footer .contact-cta a {
         <label for="evac">When were you evacuated?<span class="req">*</span></label>
         <select id="evac" name="evacuation_date" required>
           <option value="">— select —</option>
-          <option>Before May 21, 2026</option>
           <option>May 21–22, 2026 (initial evacuation)</option>
           <option>May 23, 2026 or later</option>
           <option>Not evacuated but live in the area</option>
-          <option>I was not affected</option>
         </select>
       </div>
 
       <div class="field">
-        <label for="symptoms">Did you experience any symptoms?<span class="req">*</span></label>
-        <select id="symptoms" name="had_symptoms" required>
-          <option value="">— select —</option>
-          <option>Yes — please contact me</option>
-          <option>Possibly — I want to discuss it</option>
-          <option>No symptoms</option>
-        </select>
+        <label>Symptoms — check any that apply<span class="opt"> (optional)</span></label>
+        <div class="checkbox-group">
+          <label class="checkbox-item"><input type="checkbox" name="symptom_breathing" value="Breathing problems / shortness of breath" /><span>Breathing problems / shortness of breath</span></label>
+          <label class="checkbox-item"><input type="checkbox" name="symptom_eyes" value="Burning or irritated eyes" /><span>Burning or irritated eyes</span></label>
+          <label class="checkbox-item"><input type="checkbox" name="symptom_throat" value="Sore throat / coughing" /><span>Sore throat / coughing</span></label>
+          <label class="checkbox-item"><input type="checkbox" name="symptom_headache" value="Headaches" /><span>Headaches</span></label>
+          <label class="checkbox-item"><input type="checkbox" name="symptom_nausea" value="Nausea / dizziness" /><span>Nausea / dizziness</span></label>
+          <label class="checkbox-item"><input type="checkbox" name="symptom_skin" value="Skin irritation / rash" /><span>Skin irritation / rash</span></label>
+          <label class="checkbox-item"><input type="checkbox" name="symptom_other" value="Other symptoms" /><span>Other (please describe in the message below)</span></label>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="message">Additional message<span class="opt"> (optional)</span></label>
+        <textarea id="message" name="message" rows="4" placeholder="Anything else you'd like to share about your situation..."></textarea>
       </div>
 
       <button type="submit" class="submit">SUBMIT — START MY FREE CASE REVIEW</button>
@@ -941,12 +978,8 @@ footer .contact-cta a {
     </form>
 
     <div class="form-success" id="formSuccess">
-      <h3>Thank you — we'll be in touch within 24 hours.</h3>
-      <p>A member of our intake team will call or email you to discuss your potential claim.</p>
-      <div class="callout">
-        📞 We will call you from <strong>(888) 480-5858</strong>
-        Please answer when we call — we don't leave voicemails for new intakes. If you miss us, call back to that number.
-      </div>
+      <h3>Thank you — your request has been received.</h3>
+      <p>A member of our intake team will reach out to you within 24 hours.</p>
     </div>
   </div>
 </section>
@@ -1082,11 +1115,9 @@ footer .contact-cta a {
 
   // Maps the dropdown label to an ISO date Lead Docket can parse as a datetime.
   const evacMap = {
-    'Before May 21, 2026': '2026-05-20',
     'May 21–22, 2026 (initial evacuation)': '2026-05-21',
     'May 23, 2026 or later': '2026-05-23',
     'Not evacuated but live in the area': '2026-05-21',
-    'I was not affected': '2026-05-21',
   };
 
   function splitName(full) {
@@ -1175,15 +1206,20 @@ footer .contact-cta a {
     const addr = parseAddress(form.address.value);
     const evacLabel = form.evacuation_date.value;
     const evacIso = evacMap[evacLabel] || '2026-05-21';
-    const symptoms = form.had_symptoms.value;
+    const symptomChecks = form.querySelectorAll('input[type="checkbox"][name^="symptom_"]:checked');
+    const symptomList = Array.from(symptomChecks).map(cb => cb.value);
+    const symptoms = symptomList.length > 0 ? symptomList.join('; ') : 'None reported';
+    const message = (form.message && form.message.value || '').trim();
 
-    const summary = [
+    const summaryLines = [
       'Garden Grove Chemical Leak — Lead Form Submission',
       `Evacuation window: ${evacLabel}`,
-      `Symptoms response: ${symptoms}`,
+      `Symptoms reported: ${symptoms}`,
       `Address at time of leak: ${form.address.value}`,
-      `Source: gardengrovetankleak.com`,
-    ].join('\n');
+    ];
+    if (message) summaryLines.push(`Additional message: ${message}`);
+    summaryLines.push('Source: gardengrovetankleak.com');
+    const summary = summaryLines.join('\n');
 
     const payload = new FormData();
     payload.append('First', first);
