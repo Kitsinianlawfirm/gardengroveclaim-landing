@@ -74,8 +74,14 @@ def text_width(draw, text, font):
     return b[2] - b[0]
 
 
-def build_og(headline_lines, yellow_bar_text, trust_line, domain, output_filename, date_text="MAY 2026"):
-    """v2 layout — left-aligned big headline, yellow info bar, asymmetric footer."""
+def build_og(headline_lines, yellow_bar_text, trust_line, domain, output_filename,
+             date_text="MAY 2026", head_sizes=None, trust_size=24):
+    """v2 layout — left-aligned big headline, yellow info bar, asymmetric footer.
+    head_sizes: optional list of per-line font sizes (defaults to 130 for all).
+    trust_size: footer trust-line font size (default 24)."""
+    if head_sizes is None:
+        head_sizes = [130] * len(headline_lines)
+    assert len(head_sizes) == len(headline_lines), "head_sizes must match headline_lines length"
     # 1) Background photo (brighten + contrast)
     photo = Image.open(PHOTO_PATH).convert("RGB")
     bg = cover_fit(photo, W, H)
@@ -123,18 +129,19 @@ def build_og(headline_lines, yellow_bar_text, trust_line, domain, output_filenam
     )
     draw_cap_centered(draw, date_x + date_w // 2, date_y + date_h // 2, date_text, date_font, COLORS["white"])
 
-    # 5) Headline (left-aligned, two lines, Barlow Black 130pt)
-    head_font = f(FONT_BARLOW_BLACK, 130)
+    # 5) Headline (left-aligned, Barlow Black, per-line font sizing)
     head_x = 60
-    line_h = 130  # tight line height for max impact
     head_start_y = 165  # cap top of first line
-    for i, line in enumerate(headline_lines):
-        draw_cap_left(draw, head_x, head_start_y + i * line_h + (cap_height(draw, head_font) // 2),
-                      line, head_font, COLORS["white"])
+    y_cursor = head_start_y
+    for i, (line, size) in enumerate(zip(headline_lines, head_sizes)):
+        line_font = f(FONT_BARLOW_BLACK, size)
+        ch = cap_height(draw, line_font)
+        draw_cap_left(draw, head_x, y_cursor + ch // 2, line, line_font, COLORS["white"])
+        y_cursor += size  # use size as line spacing
 
     # 6) Yellow info bar — full-width strip with conversion hook
     bar_h = 78
-    bar_y = head_start_y + len(headline_lines) * line_h + 30  # 30px breathing room below headline
+    bar_y = y_cursor + 30  # 30px breathing room below headline
     draw.rectangle([0, bar_y, W, bar_y + bar_h], fill=COLORS["yellow"])
     bar_font = f(FONT_BARLOW_BLACK, 38)
     # Nudge text up 3px — cap-centered all-caps reads bottom-heavy at default
@@ -142,7 +149,7 @@ def build_og(headline_lines, yellow_bar_text, trust_line, domain, output_filenam
 
     # 7) Bottom row — asymmetric: trust line left, logo+domain right
     footer_y = H - 50  # vertical mid of footer row
-    trust_font = f(FONT_BARLOW_XBOLD, 24)
+    trust_font = f(FONT_BARLOW_XBOLD, trust_size)
     # Drop trust line 4px to baseline-align with logo+domain block on right
     draw_cap_left(draw, 60, footer_y + 4, trust_line, trust_font, COLORS["gold"])
 
@@ -183,21 +190,26 @@ def build_og(headline_lines, yellow_bar_text, trust_line, domain, output_filenam
 def main():
     print("Building OG images (v2 design)...")
 
-    # English
+    # English — "CHEMICAL EMERGENCY" sized down to fit on one line at 1200px width.
+    # Trust line lengthened to match the compliant phrasing used sitewide; font dropped to 20pt.
     build_og(
-        headline_lines=["GARDEN GROVE", "CHEMICAL LEAK"],
+        headline_lines=["GARDEN GROVE", "CHEMICAL EMERGENCY"],
+        head_sizes=[130, 95],
         yellow_bar_text="EVACUATED?  YOU MAY BE OWED COMPENSATION",
-        trust_line="FREE CASE REVIEW · NO FEE UNLESS WE WIN",
+        trust_line="FREE CASE REVIEW · NO ATTORNEYS' FEES UNLESS WE RECOVER",
+        trust_size=20,
         domain="gardengroveclaim.com",
         output_filename="og-en.jpg",
         date_text="MAY 2026",
     )
 
-    # Spanish
+    # Spanish — line 1 "EMERGENCIA QUÍMICA" sized down (long word), line 2 stays big.
     build_og(
-        headline_lines=["DERRAME QUÍMICO", "EN GARDEN GROVE"],
+        headline_lines=["EMERGENCIA QUÍMICA", "EN GARDEN GROVE"],
+        head_sizes=[95, 130],
         yellow_bar_text="¿FUE EVACUADO?  PUEDE TENER COMPENSACIÓN",
-        trust_line="CONSULTA GRATIS · SIN COSTO SI NO GANAMOS",
+        trust_line="CONSULTA GRATIS · SIN HONORARIOS A MENOS QUE RECUPEREMOS",
+        trust_size=20,
         domain="gardengroveclaim.com/es",
         output_filename="og-es.jpg",
         date_text="MAYO 2026",
