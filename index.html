@@ -920,9 +920,15 @@ footer .contact-cta a {
           method="POST"
           autocomplete="on">
 
-      <div class="field">
-        <label for="fullName">Full name<span class="req">*</span></label>
-        <input id="fullName" name="full_name" type="text" required placeholder="Your name" autocomplete="name" />
+      <div class="field-row">
+        <div class="field">
+          <label for="firstName">First name<span class="req">*</span></label>
+          <input id="firstName" name="first_name" type="text" required placeholder="First name" autocomplete="given-name" />
+        </div>
+        <div class="field">
+          <label for="lastName">Last name<span class="req">*</span></label>
+          <input id="lastName" name="last_name" type="text" required placeholder="Last name" autocomplete="family-name" />
+        </div>
       </div>
 
       <div class="field-row">
@@ -937,7 +943,7 @@ footer .contact-cta a {
       </div>
 
       <div class="field">
-        <label for="address">Address at the time of the leak<span class="req">*</span></label>
+        <label for="address">Address at the time of the emergency<span class="req">*</span></label>
         <input id="address" name="address" type="text" required placeholder="Street, City, State ZIP" autocomplete="street-address" />
       </div>
 
@@ -1120,13 +1126,6 @@ footer .contact-cta a {
     'Not evacuated but live in the area': '2026-05-21',
   };
 
-  function splitName(full) {
-    const parts = (full || '').trim().split(/\s+/);
-    if (parts.length === 0) return { first: '', last: '' };
-    if (parts.length === 1) return { first: parts[0], last: '' };
-    return { first: parts[0], last: parts.slice(1).join(' ') };
-  }
-
   // Parses common US address formats:
   //   "4155 Alonzo Ave. Encino CA 91316"
   //   "123 Main St, Garden Grove, CA 92840"
@@ -1201,8 +1200,8 @@ footer .contact-cta a {
     btn.disabled = true;
     btn.textContent = 'Submitting...';
 
-    const fullName = form.full_name.value;
-    const { first, last } = splitName(fullName);
+    const first = (form.first_name.value || '').trim();
+    const last = (form.last_name.value || '').trim();
     const addr = parseAddress(form.address.value);
     const evacLabel = form.evacuation_date.value;
     const evacIso = evacMap[evacLabel] || '2026-05-21';
@@ -1212,10 +1211,10 @@ footer .contact-cta a {
     const message = (form.message && form.message.value || '').trim();
 
     const summaryLines = [
-      'Garden Grove Chemical Leak — Lead Form Submission',
+      'Garden Grove Chemical Emergency — Lead Form Submission',
       `Evacuation window: ${evacLabel}`,
       `Symptoms reported: ${symptoms}`,
-      `Address at time of leak: ${form.address.value}`,
+      `Address at time of emergency: ${form.address.value}`,
     ];
     if (message) summaryLines.push(`Additional message: ${message}`);
     summaryLines.push('Source: gardengroveclaim.com');
