@@ -768,7 +768,7 @@ footer .contact-cta a {
     <p class="section-lede">Formulario rápido — solo toma 30 segundos. Un miembro de nuestro equipo le llamará en las próximas 24 horas.</p>
 
     <form class="form" id="leadForm"
-          action="https://kitsinianlaw.leaddocket.com/opportunities/form/4?apikey=kLF_gg_2026_x9Hp4mNvR2qZ8bWtY7sJ"
+          action="https://gg-orchestrator.old-block-765f.workers.dev/gg/lead"
           method="POST"
           autocomplete="on">
 
@@ -1057,33 +1057,44 @@ footer .contact-cta a {
     summaryLines.push('Source: gardengroveclaim.com/es');
     const summary = summaryLines.join('\n');
 
-    const payload = new FormData();
-    payload.append('First', first);
-    payload.append('Last', last);
-    payload.append('Phone', form.phone.value);
-    payload.append('Email', form.email.value);
-    payload.append('Address', addr.street || form.address.value);
-    payload.append('City', addr.city);
-    payload.append('State', addr.state);
-    payload.append('Postal_Code', addr.zip);
-    payload.append('Evacuation Date', evacIso);
-    payload.append('Symptoms', symptoms);
-    payload.append('Summary', summary);
-    payload.append('Preferred_Language', 'Spanish');
-    payload.append('Marketing_Source', 'Garden Grove Chemical Leak — Website Form');
+    // POST as JSON to the Cloudflare Worker proxy (form.action), which holds the LD
+    // form key server-side and returns a real success/failure — the page no longer
+    // carries the key and no longer fakes success on an opaque no-cors response.
+    const payload = {
+      First: first,
+      Last: last,
+      Phone: form.phone.value,
+      Email: form.email.value,
+      Address: addr.street || form.address.value,
+      City: addr.city,
+      State: addr.state,
+      Postal_Code: addr.zip,
+      'Evacuation Date': evacIso,
+      Symptoms: symptoms,
+      Summary: summary,
+      Preferred_Language: 'Spanish',
+      Marketing_Source: 'Garden Grove Chemical Leak — Website Form',
+    };
 
     try {
-      // Lead Docket doesn't return CORS headers — opaque response is expected.
-      await fetch(form.action, {
+      const resp = await fetch(form.action, {
         method: 'POST',
-        mode: 'no-cors',
-        body: payload,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
       });
-      form.style.display = 'none';
-      success.classList.add('show');
-      success.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      if (typeof fbq === 'function') { fbq('track', 'Lead'); fbq('track', 'SubmitApplication'); }
-      if (typeof gtag === 'function') { gtag('event', 'generate_lead', {'currency':'USD','value':1}); }
+      let data = {};
+      try { data = await resp.json(); } catch (_) {}
+      if (resp.ok && data && data.success) {
+        form.style.display = 'none';
+        success.classList.add('show');
+        success.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (typeof fbq === 'function') { fbq('track', 'Lead'); fbq('track', 'SubmitApplication'); }
+        if (typeof gtag === 'function') { gtag('event', 'generate_lead', {'currency':'USD','value':1}); }
+      } else {
+        btn.disabled = false;
+        btn.textContent = originalText;
+        alert((data && data.message) ? ('No pudimos enviar su solicitud: ' + data.message + '\nPor favor llame al (888) 480-5858.') : 'Algo salió mal. Por favor llame al (888) 480-5858 o intente de nuevo.');
+      }
     } catch (err) {
       btn.disabled = false;
       btn.textContent = originalText;
