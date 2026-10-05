@@ -431,6 +431,23 @@ section { padding: 64px 22px; }
 .qualifier .check svg { width: 22px; height: 22px; }
 
 /* ---------- CITIES BAND ---------- */
+
+/* Evacuation zone map (Google My Maps embed), added 2026-10-05. Mirrors landfillclaim.com's .map-wrap. */
+.map-wrap { max-width: 900px; margin: 30px auto 0; }
+.map-head {
+  font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 13px;
+  letter-spacing: 2.5px; text-transform: uppercase; color: var(--gold);
+  text-align: center; margin-bottom: 14px;
+}
+.map-frame {
+  position: relative; width: 100%; aspect-ratio: 16 / 10;
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 14px; overflow: hidden;
+}
+@media (max-width: 560px) { .map-frame { aspect-ratio: 4 / 5; } }
+.map-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
+.map-note { text-align: center; color: var(--muted); font-size: 12.5px; line-height: 1.6; margin-top: 12px; }
+
 .cities {
   background: var(--panel);
   border-radius: 14px;
@@ -906,6 +923,20 @@ footer .contact-cta a {
       <div class="list">Anaheim · Cypress · Buena Park</div>
       <div class="extra">& Surrounding Orange County Communities</div>
     </div>
+    <!-- Evacuation zone map (Google My Maps embed). To swap maps, replace ONLY the src. -->
+    <div class="map-wrap">
+      <div class="map-head">Map of the evacuation zones</div>
+      <div class="map-frame">
+        <iframe
+          src="https://www.google.com/maps/d/embed?mid=1M6dQmoKX1ePl2v1JCXivNYktlbTOkIM&amp;ehbc=161A22&amp;noprof=1&amp;ll=33.792%2C-118.013&amp;z=13"
+          title="Map of the May 2026 Garden Grove chemical emergency evacuation zones"
+          loading="lazy"
+          referrerpolicy="no-referrer-when-downgrade"
+          allowfullscreen></iframe>
+      </div>
+      <p class="map-note">Shaded areas show the evacuation zones ordered May 21 to 26, 2026, as published by the City of Garden Grove. Map is for general orientation only. Not sure if your address was inside? Tell us your address and we will check it for you at no cost.</p>
+    </div>
+
   </div>
 </section>
 
